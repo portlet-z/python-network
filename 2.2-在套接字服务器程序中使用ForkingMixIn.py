@@ -2,11 +2,12 @@ import os
 import socket
 import threading
 import socketserver
+import time
 
 SERVER_HOST = "localhost"
 SERVER_PORT = 0  # 0表示动态分配端口号
 BUF_SIZE = 1024
-ECHO_MSG = "Hello echo server!"
+ECHO_MSG = b"Hello echo server!"
 
 
 class ForkingClient:
@@ -16,7 +17,8 @@ class ForkingClient:
 
     def run(self):
         current_process_id = os.getpid()
-        print(f"PID {current_process_id} Sending echo message to the server: {ECHO_MSG}")
+        print(
+            f"PID {current_process_id} Sending echo message to the server: {ECHO_MSG}")
         sent_data_length = self.sock.send(ECHO_MSG)
         print(f"Sent: {sent_data_length} characters, so far.")
         response = self.sock.recv(BUF_SIZE)
@@ -30,8 +32,9 @@ class ForkingServerRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         data = self.request.recv(BUF_SIZE)
         current_process_id = os.getpid()
-        response = f"{current_process_id}, {data}"
-        print(f"Server sending response [current_process_id: data] = {response}")
+        response = f"{current_process_id}, {data}".encode("utf8")
+        print(
+            f"Server sending response [current_process_id:{current_process_id} data: {data}]")
         self.request.send(response)
         return
 
@@ -42,14 +45,16 @@ class ForkingServer(socketserver.ForkingMixIn, socketserver.TCPServer):
 
 
 def main():
-    server = ForkingServer((SERVER_HOST, SERVER_PORT), ForkingServerRequestHandler)
+    server = ForkingServer((SERVER_HOST, SERVER_PORT),
+                           ForkingServerRequestHandler)
     ip, port = server.server_address
-    server_thread = threading.Thread(target=server.serve_forever())
+    server_thread = threading.Thread(target=server.serve_forever)
     server_thread.setDaemon(True)
     server_thread.start()
     print(f"Server loop running PID: {os.getpid()}")
     client1 = ForkingClient(ip, port)
     client1.run()
+    time.sleep(1)
     client2 = ForkingClient(ip, port)
     client2.run()
     server.shutdown()
@@ -60,4 +65,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
